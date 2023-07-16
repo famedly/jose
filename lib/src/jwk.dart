@@ -2,6 +2,7 @@
 library jose.jwk;
 
 import 'dart:async';
+import 'dart:math';
 import 'dart:async' as async show runZoned;
 import 'dart:convert';
 import 'dart:convert' as convert;
@@ -15,6 +16,11 @@ import 'package:http_parser/http_parser.dart';
 import 'package:jose/src/jwa.dart';
 import 'package:meta/meta.dart';
 import 'package:x509/x509.dart' as x509;
+import 'package:pointycastle/ecc/ecdh.dart' as ecdh;
+import 'package:pointycastle/pointycastle.dart' as ecdh;
+import 'package:pointycastle/ecc/api.dart' as ecdh;
+import 'package:pointycastle/ecc/curves/brainpoolp256r1.dart' as ecdh;
+import 'package:pointycastle/digests/sha256.dart' as ecdh;
 
 import 'jose.dart';
 import 'util.dart';
@@ -199,6 +205,66 @@ class JsonWebKey extends JsonObject {
     return alg.generateRandomKey(keyBitLength: keyBitLength);
   }
 
+  /// Generates a random key suitable for the specified [algorithm] using ECDH
+  factory JsonWebKey.generateECDH(String algorithm,
+      {required JsonWebKey publicKey, required JsonWebKey privateKey}) {
+    var alg = JsonWebAlgorithm.getByName(algorithm);
+
+    final privKey = privateKey._keyPair.privateKey! as EcPrivateKey;
+    final pubKey = publicKey._keyPair.publicKey! as EcPublicKey;
+    final curve = privateKey._keyPair.curveParameters()!;
+
+    final sharedSecret = (ecdh.ECDHBasicAgreement()
+          ..init(ecdh.ECPrivateKey(privKey.eccPrivateKey, curve)))
+        .calculateAgreement(ecdh.ECPublicKey(
+            curve.curve.createPoint(pubKey.xCoordinate, pubKey.yCoordinate),
+            curve));
+
+    final sharedSecretBytes =
+        (ecdh.ASN1Integer(sharedSecret)..encode()).valueBytes!;
+
+    // concat KDF, basically the string "counter+secret+algorithm+apu+apv+keylength" hashed repeatedly while incrementing the counter and use that as the key.
+    final keyBits = alg.minKeyBitLength ?? 256;
+    final keyBytes = keyBits ~/ 8;
+    final iterations = max(keyBits ~/ 256, 1);
+
+    final key = Uint8List(keyBytes);
+
+    final algorithmBytes = utf8.encode(algorithm);
+    final algorithmSize = Uint8List(4)
+      ..buffer.asByteData().setInt32(0, algorithmBytes.length, Endian.big);
+    final keySize = Uint8List(4)
+      ..buffer.asByteData().setInt32(0, keyBits, Endian.big);
+
+    // algorithm encoded and keylength encoded (0x0100 == 256 for example). apu and apv currently hardcoded to 0.
+    final value = Uint8List.fromList([
+      ...algorithmSize,
+      ...algorithmBytes,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      ...keySize,
+    ]);
+
+    for (var i = 1; i <= iterations; i++) {
+      final counter = Uint8List(4)
+        ..buffer.asByteData().setInt32(0, i, Endian.big);
+      final buf =
+          Uint8List.fromList([...counter, ...sharedSecretBytes, ...value]);
+
+      key.setRange(
+          (i - 1) * 32, i * 32, ecdh.SHA256Digest().process(buf).take(32));
+    }
+
+    return alg
+        .jwkFromCryptoKeyPair(KeyPair.symmetric(SymmetricKey(keyValue: key)));
+  }
+
   KeyPair get cryptoKeyPair => _keyPair;
 
   /// The cryptographic algorithm family used with the key, such as `RSA` or
@@ -292,8 +358,12 @@ class JsonWebKey extends JsonObject {
     var encrypter =
         _keyPair.publicKey!.createEncrypter(_getAlgorithm(algorithm));
     return encrypter.encrypt(Uint8List.fromList(data),
-        initializationVector: initializationVector != null ? Uint8List.fromList(initializationVector) : null,
-        additionalAuthenticatedData: additionalAuthenticatedData != null ? Uint8List.fromList(additionalAuthenticatedData) : null);
+        initializationVector: initializationVector != null
+            ? Uint8List.fromList(initializationVector)
+            : null,
+        additionalAuthenticatedData: additionalAuthenticatedData != null
+            ? Uint8List.fromList(additionalAuthenticatedData)
+            : null);
   }
 
   /// Decrypt content and validate decryption, if applicable
@@ -307,10 +377,15 @@ class JsonWebKey extends JsonObject {
     var decrypter =
         _keyPair.privateKey!.createEncrypter(_getAlgorithm(algorithm));
     return decrypter.decrypt(EncryptionResult(Uint8List.fromList(data),
-        initializationVector: initializationVector != null ? Uint8List.fromList(initializationVector) : null,
-        authenticationTag: authenticationTag != null ? Uint8List.fromList(authenticationTag) : null,
-        additionalAuthenticatedData:
-            additionalAuthenticatedData != null ? Uint8List.fromList(additionalAuthenticatedData) : null));
+        initializationVector: initializationVector != null
+            ? Uint8List.fromList(initializationVector)
+            : null,
+        authenticationTag: authenticationTag != null
+            ? Uint8List.fromList(authenticationTag)
+            : null,
+        additionalAuthenticatedData: additionalAuthenticatedData != null
+            ? Uint8List.fromList(additionalAuthenticatedData)
+            : null));
   }
 
   /// Encrypt key
@@ -322,7 +397,8 @@ class JsonWebKey extends JsonObject {
     algorithm ??= this.algorithm;
     var encrypter =
         _keyPair.publicKey!.createEncrypter(_getAlgorithm(algorithm));
-    var v = encrypter.encrypt(Uint8List.fromList(decodeBase64EncodedBytes(key['k'])));
+    var v = encrypter
+        .encrypt(Uint8List.fromList(decodeBase64EncodedBytes(key['k'])));
     return v.data;
   }
 
@@ -416,7 +492,9 @@ class JsonWebKey extends JsonObject {
 class JsonWebKeySet extends JsonObject {
   /// An array of JWK values
   List<JsonWebKey> get keys =>
-      getTypedList<JsonWebKey>('keys', factory: (v) => JsonWebKey.fromJson(v)) ?? const [];
+      getTypedList<JsonWebKey>('keys',
+          factory: (v) => JsonWebKey.fromJson(v)) ??
+      const [];
 
   /// Constructs a [JsonWebKeySet] from the list of [keys]
   factory JsonWebKeySet.fromKeys(Iterable<JsonWebKey> keys) =>
@@ -482,6 +560,11 @@ class JsonWebKeyStore {
 
     if (header.keyId != key.keyId) {
       return false;
+    }
+
+    if (header.algorithm == 'ECDH-ES' &&
+        (operation == 'encrypt' || operation == 'decrypt')) {
+      return key.keyType == 'EC';
     }
 
     return key.usableForAlgorithm(
