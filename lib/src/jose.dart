@@ -217,7 +217,7 @@ abstract class JoseObject {
         header,
         this is JsonWebSignature
             ? 'verify'
-            : header.algorithm == 'dir'
+            : (header.algorithm == 'dir' || header.algorithm == 'ECDH-ES')
                 ? 'decrypt'
                 : 'unwrapKey',
       )) {
