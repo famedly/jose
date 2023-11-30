@@ -389,7 +389,7 @@ abstract class JoseObjectBuilder<T extends JoseObject> {
   }
 
   /// Build the [JsonWebSignature] or [JsonWebEncryption]
-  T build();
+  Future<T> build();
 }
 
 class JoseException implements Exception {
