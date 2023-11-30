@@ -200,7 +200,7 @@ class JsonWebEncryptionBuilder extends JoseObjectBuilder<JsonWebEncryption> {
   String? compressionAlgorithm;
 
   @override
-  JsonWebEncryption build() {
+  Future<JsonWebEncryption> build() {
     if (encryptionAlgorithm == null) {
       throw StateError('No encryption algorithm set');
     }
@@ -308,12 +308,13 @@ class JsonWebEncryptionBuilder extends JoseObjectBuilder<JsonWebEncryption> {
     var encryptedData = cek.encrypt(data,
         initializationVector: iv,
         additionalAuthenticatedData: Uint8List.fromList(aad.codeUnits));
-    return JsonWebEncryption._(encryptedData.data, recipientsMapped,
+    return Future.value(JsonWebEncryption._(
+        encryptedData.data, recipientsMapped,
         protectedHeader: protectedHeader,
         unprotectedHeader:
             compact ? null : JsonObject.from(sharedUnprotectedHeaderParams),
         initializationVector: encryptedData.initializationVector!,
         authenticationTag: encryptedData.authenticationTag!,
-        additionalAuthenticatedData: additionalAuthenticatedData);
+        additionalAuthenticatedData: additionalAuthenticatedData));
   }
 }

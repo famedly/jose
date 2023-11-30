@@ -210,7 +210,7 @@ void main() {
       var keyStore = JsonWebKeyStore()..addKey(key);
 
       builder.addRecipient(key, algorithm: 'dir');
-      var jwe = builder.build();
+      var jwe = await builder.build();
 
       jwe = JsonWebEncryption.fromCompactSerialization(
           jwe.toCompactSerialization());
@@ -281,7 +281,7 @@ void main() {
     builder.addRecipient(jwk, algorithm: 'dir');
     builder.encryptionAlgorithm = 'A256GCM';
 
-    var jwe = builder.build();
+    var jwe = await builder.build();
     expect(
         utf8.decode(
             jwe.getPayloadFor(jwk, jwe.commonHeader, jwe.recipients.first)!),
@@ -292,15 +292,15 @@ void main() {
         JsonWebAlgorithm('Something', type: 'EC', curve: 'BP-256', use: 'enc')
             .generateRandomKey();
 
-    final encrypted = (JsonWebEncryptionBuilder()
-          ..encryptionAlgorithm = 'A256GCM'
-          ..jsonContent = {'test': 'test'}
-          ..mediaType = 'NJWT'
-          ..setProtectedHeader(
-              'exp', DateTime.now().millisecondsSinceEpoch * 1000)
-          ..addRecipient(privateKey,
-              algorithm: 'ECDH-ES')) //, algorithm: 'BP256R1'))
-        .build()
+    final encrypted = (await (JsonWebEncryptionBuilder()
+              ..encryptionAlgorithm = 'A256GCM'
+              ..jsonContent = {'test': 'test'}
+              ..mediaType = 'NJWT'
+              ..setProtectedHeader(
+                  'exp', DateTime.now().millisecondsSinceEpoch * 1000)
+              ..addRecipient(privateKey,
+                  algorithm: 'ECDH-ES')) //, algorithm: 'BP256R1'))
+            .build())
         .toCompactSerialization();
 
     final store = JsonWebKeyStore();
@@ -355,15 +355,15 @@ DwwoHgQL4BQ6fCuuc26m93ClRTrYqjo418x5fDMyvr7KWkIMwVU6xcWJNg==
     print("decPayload = ${decPayload.jsonContent}");
     expect(decPayload.jsonContent, jsonDecode(payload));
 
-    final encrypted = (JsonWebEncryptionBuilder()
-          ..encryptionAlgorithm = 'A256GCM'
-          ..jsonContent = {'test': 'test'}
-          ..mediaType = 'NJWT'
-          ..setProtectedHeader(
-              'exp', DateTime.now().millisecondsSinceEpoch * 1000)
-          ..addRecipient(publicKey,
-              algorithm: 'ECDH-ES')) //, algorithm: 'BP256R1'))
-        .build()
+    final encrypted = (await (JsonWebEncryptionBuilder()
+              ..encryptionAlgorithm = 'A256GCM'
+              ..jsonContent = {'test': 'test'}
+              ..mediaType = 'NJWT'
+              ..setProtectedHeader(
+                  'exp', DateTime.now().millisecondsSinceEpoch * 1000)
+              ..addRecipient(publicKey,
+                  algorithm: 'ECDH-ES')) //, algorithm: 'BP256R1'))
+            .build())
         .toCompactSerialization();
 
     print("PRIVATE: $privateKey");
@@ -451,7 +451,7 @@ void _doTests(dynamic payload, dynamic key, dynamic encoded) {
       }
     }
 
-    jwe = builder.build();
+    jwe = await builder.build();
 
     if (encoded is String) jwe.toCompactSerialization();
     await expectPayload(jwe);
