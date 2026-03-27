@@ -463,24 +463,15 @@ class JsonWebKeyStore {
   }
 
   Stream<JsonWebKey> _allKeys(JoseHeader header) async* {
-    // The key provided by the 'jwk'
-    if (header.jsonWebKey != null) yield header.jsonWebKey!;
-    // Other applicable keys available to the application
+    // The keys added with `addKey`
     yield* Stream.fromIterable(_keys);
 
+    // The keys added with `addKeySet`
     for (var s in _keySets) {
       yield* Stream.fromIterable(s.keys);
     }
-/*
-    // TODO trust keys from header?
-    // Keys referenced by the 'jku'
-    if (header.jwkSetUrl != null) yield* _keysFromSet(header.jwkSetUrl);
-    // The key referenced by the 'x5u'
-    // TODO
-    // The key provided by the 'x5c'
-    // TODO
-*/
-    // Other applicable keys available to the application
+
+    // The keys added with `addKeySetUrl`
     for (var url in _keySetUrls) {
       yield* _keysFromSet(url).where((v) => v != null).cast();
     }
