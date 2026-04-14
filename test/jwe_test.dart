@@ -326,6 +326,7 @@ DwwoHgQL4BQ6fCuuc26m93ClRTrYqjo418x5fDMyvr7KWkIMwVU6xcWJNg==
     final compactJwt =
         "eyJhbGciOiJFQ0RILUVTIiwidHlwIjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImVwayI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6Ill0aDdLTUhUYzNFUUQwUHpnZ0FiN29fSDFadlFnQzFUOGdjMS1rZjFTanMiLCJ5IjoiQXZIeHF1T3RGZ1ZveHNYUHFjWGpfWjZhMDBDY0ZFMzJpRjdiY3hVZGFqdyJ9fQ..5pjvf-Iu4tII5jqf.5j3HuDUfDF4NryaG78Ib5Mpsp_bB4tfWiyffc07rzJZufR7bczu8PbNxpOCZGrTczdJR6I6nCfoe6uQRg7xw3D-4ARBVggs04bWhkt-QFLXMJ-k8_QLH6FER5ALUbw.cP7kgs48KkNoBPH6pn_YEA";
 
+    // ignore: unused_local_variable
     final header = """{
   "alg": "ECDH-ES",
   "typ": "JWT",
@@ -398,7 +399,7 @@ DwwoHgQL4BQ6fCuuc26m93ClRTrYqjo418x5fDMyvr7KWkIMwVU6xcWJNg==
     final secret = JsonWebKey.generateECDH('A256GCM',
         publicKey: publicKey, privateKey: privateKey);
 
-    print("payload ${secret}");
+    print("payload $secret");
 
     // should be: 86c7d0c862e836a999b537df8542ab91d5788514669edc9de916dd3f77d52a71ce9fa5e476205ee167a757523cc2c6813a9e4730e3b3b0c1588ff720425b3f6a4a
   });
