@@ -16,10 +16,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:jose/src/jwa.dart';
 import 'package:meta/meta.dart';
 import 'package:x509/x509.dart' as x509;
-import 'package:pointycastle/ecc/ecdh.dart' as ecdh;
 import 'package:pointycastle/pointycastle.dart' as ecdh;
-import 'package:pointycastle/ecc/api.dart' as ecdh;
-import 'package:pointycastle/ecc/curves/brainpoolp256r1.dart' as ecdh;
 import 'package:pointycastle/digests/sha256.dart' as ecdh;
 
 import 'jose.dart';
@@ -262,6 +259,7 @@ class JsonWebKey extends JsonObject {
     }
 
     return alg
+        // ignore: invalid_use_of_visible_for_testing_member
         .jwkFromCryptoKeyPair(KeyPair.symmetric(SymmetricKey(keyValue: key)));
   }
 
