@@ -1,5 +1,7 @@
+import 'package:jose/src/jose.dart';
 import 'package:jose/src/jwk.dart';
 import 'package:jose/src/jwt.dart';
+import 'package:jose/src/jws.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -157,6 +159,41 @@ void main() {
   test('JsonWebTokenClaims can handle doubles in expiration', () {
     final claims = JsonWebTokenClaims.fromJson({'exp': 1300819380.0});
     expect(claims.expiry, DateTime.fromMillisecondsSinceEpoch(1300819380000));
+  });
+
+  group('Verification key selection', () {
+    test('JWT with header jwk is rejected when no matching trusted key exists',
+        () async {
+      final trustedKey = JsonWebKey.generate('RS256');
+      final keyStore = JsonWebKeyStore()..addKey(trustedKey);
+
+      final alternateKey = JsonWebKey.generate('RS256');
+      final claims = JsonWebTokenClaims.fromJson({
+        'sub': 'user-2',
+        'iss': 'https://trusted-issuer.example.com',
+        'aud': 'my-application',
+        'exp': DateTime.now()
+                .add(const Duration(hours: 1))
+                .millisecondsSinceEpoch ~/
+            1000,
+        'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      });
+      final builder = JsonWebSignatureBuilder()
+        ..jsonContent = claims.toJson()
+        ..setProtectedHeader('typ', 'JWT')
+        ..addRecipient(alternateKey, algorithm: 'RS256')
+        ..setProtectedHeader(
+            'jwk',
+            JsonWebKey.fromCryptoKeys(
+                    publicKey: alternateKey.cryptoKeyPair.publicKey)
+                .toJson());
+      final jwtCompact = (await builder.build()).toCompactSerialization();
+
+      expect(
+        () => JsonWebToken.decodeAndVerify(jwtCompact, keyStore),
+        throwsA(isA<JoseException>()),
+      );
+    });
   });
 
   group('JWT with ES256K signature', () {
